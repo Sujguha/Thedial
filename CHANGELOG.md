@@ -1,6 +1,16 @@
 # Changelog
 
-## v2.2.0 — current
+## v2.3.0 — current
+- Full responsive pass: fluid header/readout type sizing, safe-area padding
+  for notches and home-indicator areas on installed iOS apps
+- Player card no longer stays sticky on phone/tablet widths (was crowding
+  the station list on short screens)
+- Dial shrinks further on short-height mobile viewports
+- Station rows and filter chips tightened for narrow screens, larger touch
+  targets, horizontally scrollable genre chips instead of wrapping
+- Search box and state dropdown stack full-width below 480px
+
+## v2.2.0
 - Added iOS/Android home-screen install support: apple-touch-icon, web-app
   meta tags, and an embedded app icon
 - File renamed to `index.html` for static hosting (GitHub Pages, etc.)
