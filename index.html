@@ -260,7 +260,24 @@
     flex-wrap:nowrap;
     overflow-x:auto;
     -webkit-overflow-scrolling:touch;
-    padding-bottom:.2rem;
+    padding-bottom:.5rem;
+    cursor:grab;
+    scrollbar-width:thin;
+    scrollbar-color:var(--brass) transparent;
+  }
+  .toolbar:has(.chip):active{
+    cursor:grabbing;
+  }
+  .toolbar:has(.chip)::-webkit-scrollbar{
+    height:6px;
+  }
+  .toolbar:has(.chip)::-webkit-scrollbar-track{
+    background:var(--line);
+    border-radius:3px;
+  }
+  .toolbar:has(.chip)::-webkit-scrollbar-thumb{
+    background:var(--brass);
+    border-radius:3px;
   }
   .chip{
     background:var(--panel);
@@ -449,7 +466,7 @@
 
 </div>
 
-<footer>Station list from the community-run <a href="https://www.radio-browser.info" target="_blank" rel="noopener">Radio Browser</a> directory. Playback quality and availability depend on each broadcaster's own servers.<br><span style="opacity:.6;">The Dial — India · v2.6.0</span></footer>
+<footer>Station list from the community-run <a href="https://www.radio-browser.info" target="_blank" rel="noopener">Radio Browser</a> directory. Playback quality and availability depend on each broadcaster's own servers.<br><span style="opacity:.6;">The Dial — India · v2.6.1</span></footer>
 
 <audio id="player" preload="none"></audio>
 
@@ -515,6 +532,45 @@
     }
   }
   buildDial();
+
+  // The chip rows scroll horizontally, but a plain mouse (no trackpad/touch)
+  // has no native way to trigger that — no visible scrollbar by default on
+  // macOS/Windows, and mouse wheels only scroll vertically. This adds both
+  // click-and-drag scrolling and vertical-wheel-to-horizontal conversion.
+  function enableHorizontalScroll(el){
+    if(!el) return;
+
+    // Vertical wheel → horizontal scroll (only when there's overflow to scroll)
+    el.addEventListener('wheel', (e)=>{
+      if(el.scrollWidth <= el.clientWidth) return;
+      if(Math.abs(e.deltaY) > Math.abs(e.deltaX)){
+        el.scrollLeft += e.deltaY;
+        e.preventDefault();
+      }
+    }, { passive: false });
+
+    // Click-and-drag scrolling for desktop mouse users
+    let isDown = false, startX = 0, startScroll = 0, moved = false;
+    el.addEventListener('mousedown', (e)=>{
+      isDown = true; moved = false;
+      startX = e.pageX;
+      startScroll = el.scrollLeft;
+    });
+    window.addEventListener('mouseup', ()=>{ isDown = false; });
+    window.addEventListener('mousemove', (e)=>{
+      if(!isDown) return;
+      const dx = e.pageX - startX;
+      if(Math.abs(dx) > 4) moved = true;
+      el.scrollLeft = startScroll - dx;
+    });
+    // Suppress the click that would otherwise fire on a chip right after a drag
+    el.addEventListener('click', (e)=>{
+      if(moved){ e.stopPropagation(); e.preventDefault(); moved = false; }
+    }, true);
+  }
+
+  enableHorizontalScroll(chipsEl);
+  enableHorizontalScroll(spotlightChipsEl);
 
   function setNeedle(freq){
     const pct = (freq - FREQ_MIN) / (FREQ_MAX - FREQ_MIN);
