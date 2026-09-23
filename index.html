@@ -80,6 +80,12 @@
     gap:1.75rem;
     align-items:start;
   }
+  .layout > *{
+    min-width:0;    /* grid items default to min-width:auto, which lets wide
+                        content (like the scrolling chip rows) force the whole
+                        track — and everything else in it — wider than the
+                        screen instead of scrolling internally */
+  }
   @media (max-width:860px){
     .layout{grid-template-columns:1fr; gap:1.25rem;}
   }
@@ -466,7 +472,7 @@
 
 </div>
 
-<footer>Station list from the community-run <a href="https://www.radio-browser.info" target="_blank" rel="noopener">Radio Browser</a> directory. Playback quality and availability depend on each broadcaster's own servers.<br><span style="opacity:.6;">The Dial — India · v2.6.1</span></footer>
+<footer>Station list from the community-run <a href="https://www.radio-browser.info" target="_blank" rel="noopener">Radio Browser</a> directory. Playback quality and availability depend on each broadcaster's own servers.<br><span style="opacity:.6;">The Dial — India · v2.6.2</span></footer>
 
 <audio id="player" preload="none"></audio>
 
