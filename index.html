@@ -279,11 +279,38 @@
     color:#1c1510;
     font-weight:600;
   }
+  .chip.chip-seasonal{
+    background:linear-gradient(135deg, var(--saffron), var(--rust));
+    border-color:transparent;
+    color:#1c1510;
+    font-weight:600;
+  }
+  .chip.chip-seasonal.active{
+    box-shadow:0 0 0 2px var(--cream) inset;
+  }
+  .chip.chip-spotlight{
+    background:transparent;
+    border-color:var(--green);
+    color:var(--green);
+  }
+  .chip.chip-spotlight.active{
+    background:var(--green);
+    border-color:var(--green);
+    color:#1c1510;
+    font-weight:600;
+  }
 
   .count-line{
     font-size:.78rem;
     color:var(--cream-dim);
     margin:-0.4rem 0 .8rem;
+  }
+  .spotlight-label{
+    font-size:.72rem;
+    text-transform:uppercase;
+    letter-spacing:.06em;
+    color:var(--cream-dim);
+    margin:-0.3rem 0 .4rem;
   }
 
   .station-list{
@@ -411,6 +438,8 @@
       </select>
     </div>
     <div class="toolbar" id="chips"></div>
+    <div class="spotlight-label" id="spotlightLabel" style="display:none;">Singer spotlights</div>
+    <div class="toolbar" id="spotlightChips"></div>
     <div class="count-line" id="countLine"></div>
 
     <div class="station-list" id="stationList">
@@ -420,7 +449,7 @@
 
 </div>
 
-<footer>Station list from the community-run <a href="https://www.radio-browser.info" target="_blank" rel="noopener">Radio Browser</a> directory. Playback quality and availability depend on each broadcaster's own servers.<br><span style="opacity:.6;">The Dial — India · v2.3.0</span></footer>
+<footer>Station list from the community-run <a href="https://www.radio-browser.info" target="_blank" rel="noopener">Radio Browser</a> directory. Playback quality and availability depend on each broadcaster's own servers.<br><span style="opacity:.6;">The Dial — India · v2.6.0</span></footer>
 
 <audio id="player" preload="none"></audio>
 
@@ -463,6 +492,7 @@
   const needle = document.getElementById('needle');
   const listEl = document.getElementById('stationList');
   const chipsEl = document.getElementById('chips');
+  const spotlightChipsEl = document.getElementById('spotlightChips');
   const searchEl = document.getElementById('search');
   const stateFilterEl = document.getElementById('stateFilter');
   const countLine = document.getElementById('countLine');
@@ -572,6 +602,95 @@
 
   const TAG_LABELS = ["bollywood","hindi","news","classical","devotional","regional","punjabi","tamil","telugu","malayalam","kannada","marathi","bengali","gujarati","english","music","talk","folk","urdu"];
 
+  // Singer spotlights — matched against station NAME (not tags), since dedicated
+  // single-artist stations in the directory identify themselves by name, e.g.
+  // "Kishore Kumar Radio", not by a "kishore-kumar" tag. Always shown, not
+  // date-gated like the festival chips above/below.
+  const ARTIST_SPOTLIGHTS = [
+    { id: "sp-kishore", label: "🎤 Kishore Kumar", nameMatch: ["kishore kumar","kishorekumar","kishor kumar"] },
+    { id: "sp-lata", label: "🎤 Lata Mangeshkar", nameMatch: ["lata mangeshkar","latamangeshkar"] },
+    { id: "sp-rafi", label: "🎤 Mohammed Rafi", nameMatch: ["mohammed rafi","mohd rafi","md rafi","mohammed rafi"] },
+    { id: "sp-asha", label: "🎤 Asha Bhosle", nameMatch: ["asha bhosle","ashabhosle"] },
+    { id: "sp-90s", label: "🎶 90s Playback Legends", nameMatch: ["kumar sanu","udit narayan","alka yagnik","anuradha paudwal","90s bollywood","90's bollywood","retro bollywood"] }
+  ];
+
+  // Diwali's date shifts every year on the lunar calendar — real dates, not a fixed day.
+  const DIWALI_MAIN_DAY = {
+    2025: "2025-10-20", 2026: "2026-11-08", 2027: "2027-10-29",
+    2028: "2028-10-17", 2029: "2029-11-05", 2030: "2030-10-26"
+  };
+
+  // Dussehra/Vijayadashami — also lunar, marks the end of the 9 nights of Navratri.
+  const DUSSEHRA_MAIN_DAY = {
+    2025: "2025-10-02", 2026: "2026-10-20", 2027: "2027-10-09",
+    2028: "2028-09-29", 2029: "2029-10-16", 2030: "2030-10-06"
+  };
+
+  const SEASONS = [
+    {
+      id: "navratri", label: "🪔 Navratri Picks",
+      keywords: ["devotional","bhakti","durga","garba","dandiya","hindu","temple","spiritual","religious","folk"],
+      inSeason(today){
+        const main = DUSSEHRA_MAIN_DAY[today.getFullYear()];
+        if(!main) return false;
+        const dussehraDate = new Date(main + "T00:00:00");
+        const diffDays = Math.round((today - dussehraDate) / 86400000);
+        return diffDays >= -10 && diffDays <= -1; // the 9 nights leading up to Dussehra
+      }
+    },
+    {
+      id: "dussehra", label: "🏹 Dussehra Picks",
+      keywords: ["devotional","bhakti","durga","hindu","temple","spiritual","religious"],
+      inSeason(today){
+        const main = DUSSEHRA_MAIN_DAY[today.getFullYear()];
+        if(!main) return false;
+        const dussehraDate = new Date(main + "T00:00:00");
+        const diffDays = Math.round((today - dussehraDate) / 86400000);
+        return diffDays >= 0 && diffDays <= 1;
+      }
+    },
+    {
+      id: "diwali", label: "✨ Diwali Picks",
+      keywords: ["devotional","bhakti","hindu","temple","spiritual","religious","festival"],
+      inSeason(today){
+        const main = DIWALI_MAIN_DAY[today.getFullYear()];
+        if(!main) return false;
+        const mainDate = new Date(main + "T00:00:00");
+        const diffDays = Math.round((today - mainDate) / 86400000);
+        return diffDays >= -4 && diffDays <= 4; // Dhanteras through Bhai Dooj, roughly
+      }
+    },
+    {
+      id: "childrensday", label: "🎈 Children's Day Picks",
+      keywords: ["kids","children","education","story","stories","rhymes","cartoon","family"],
+      inSeason(today){
+        const m = today.getMonth(), d = today.getDate(); // Nov 13 – Nov 15 (Nov 14 is the day)
+        return m === 10 && d >= 13 && d <= 15;
+      }
+    },
+    {
+      id: "christmas", label: "🎄 Christmas Picks",
+      keywords: ["christmas","carol","gospel","christian","catholic"],
+      inSeason(today){
+        const m = today.getMonth(), d = today.getDate(); // Dec 15 – Dec 26
+        return m === 11 && d >= 15 && d <= 26;
+      }
+    },
+    {
+      id: "newyear", label: "🎉 New Year Picks",
+      keywords: ["party","dance","club","pop","bollywood","hits","top40"],
+      inSeason(today){
+        const m = today.getMonth(), d = today.getDate(); // Dec 27 – Jan 3
+        return (m === 11 && d >= 27) || (m === 0 && d <= 3);
+      }
+    }
+  ];
+
+  function activeSeason(){
+    const today = new Date();
+    return SEASONS.find(s => s.inSeason(today)) || null;
+  }
+
   function topTags(list){
     const counts = {};
     list.forEach(s=>{
@@ -587,13 +706,42 @@
   function renderChips(){
     const tags = ["All", ...topTags(stations)];
     chipsEl.innerHTML = '';
+
+    const season = activeSeason();
+    if(season){
+      const c = document.createElement('div');
+      c.className = 'chip chip-seasonal' + (activeTag === season.id ? ' active' : '');
+      c.textContent = season.label;
+      c.addEventListener('click', ()=>{ activeTag = (activeTag === season.id ? "All" : season.id); renderChips(); renderSpotlightChips(); renderList(); });
+      chipsEl.appendChild(c);
+    }
+
     tags.forEach(t=>{
       const c = document.createElement('div');
       c.className = 'chip' + (t === activeTag ? ' active' : '');
       c.textContent = t === "All" ? "All" : t[0].toUpperCase()+t.slice(1);
-      c.addEventListener('click', ()=>{ activeTag = t; renderChips(); renderList(); });
+      c.addEventListener('click', ()=>{ activeTag = t; renderChips(); renderSpotlightChips(); renderList(); });
       chipsEl.appendChild(c);
     });
+  }
+
+  function renderSpotlightChips(){
+    spotlightChipsEl.innerHTML = '';
+    let shown = 0;
+    ARTIST_SPOTLIGHTS.forEach(sp=>{
+      const hasMatch = stations.some(s => {
+        const name = s.name.toLowerCase();
+        return sp.nameMatch.some(k => name.includes(k));
+      });
+      if(!hasMatch) return; // don't show a chip that would just come up empty
+      shown++;
+      const c = document.createElement('div');
+      c.className = 'chip chip-spotlight' + (activeTag === sp.id ? ' active' : '');
+      c.textContent = sp.label;
+      c.addEventListener('click', ()=>{ activeTag = (activeTag === sp.id ? "All" : sp.id); renderChips(); renderSpotlightChips(); renderList(); });
+      spotlightChipsEl.appendChild(c);
+    });
+    document.getElementById('spotlightLabel').style.display = shown ? '' : 'none';
   }
 
   function renderStateOptions(){
@@ -609,8 +757,21 @@
   function renderList(){
     const q = searchEl.value.trim().toLowerCase();
     const st = stateFilterEl.value;
+    const season = SEASONS.find(s => s.id === activeTag);
+    const spotlight = ARTIST_SPOTLIGHTS.find(sp => sp.id === activeTag);
+
     const filtered = stations
-      .filter(s => activeTag === "All" || s.tagList.includes(activeTag))
+      .filter(s => {
+        if(season){
+          const haystack = (s.name + " " + s.tags).toLowerCase();
+          return season.keywords.some(k => haystack.includes(k));
+        }
+        if(spotlight){
+          const name = s.name.toLowerCase();
+          return spotlight.nameMatch.some(k => name.includes(k));
+        }
+        return activeTag === "All" || s.tagList.includes(activeTag);
+      })
       .filter(s => !st || s.state === st)
       .filter(s => !q || s.name.toLowerCase().includes(q) || s.tags.toLowerCase().includes(q) || (s.state||'').toLowerCase().includes(q));
 
@@ -618,7 +779,11 @@
     countLine.textContent = filtered.length + (filtered.length === 1 ? ' station' : ' stations');
 
     if(!filtered.length){
-      listEl.innerHTML = '<div class="msg">No stations match that search.</div>';
+      listEl.innerHTML = season
+        ? `<div class="msg">No live stations matched for ${season.label.replace(/^\S+\s/,'')} right now — try All instead.</div>`
+        : spotlight
+        ? `<div class="msg">No live stations matched for ${spotlight.label.replace(/^\S+\s/,'')} with the current search/state filter — try clearing those.</div>`
+        : '<div class="msg">No stations match that search.</div>';
       return;
     }
 
@@ -666,6 +831,7 @@
       if(!stations.length) throw new Error('empty');
 
       renderChips();
+      renderSpotlightChips();
       renderStateOptions();
       renderList();
     } catch(err){
