@@ -1,6 +1,33 @@
 # Changelog
 
-## v2.6.0 — current
+## v2.7.0 — current
+- Fixed the lock screen / Control Center player showing a blank station name
+  — it was only ever displaying the page title ("The Dial — India") because
+  the app never told iOS/Android what was actually playing
+- Added proper Media Session integration: the station name now shows as the
+  title, state/city as the subtitle, and a simple radio icon as artwork
+- Lock screen and Control Center play/pause buttons now actually control
+  playback (previously only the in-app button worked)
+
+## v2.6.2 — current
+- Fixed a layout bug (CSS Grid "blowout") where the chip rows' scrollable
+  content was forcing the entire page wider than the screen instead of
+  scrolling within its own row — this clipped the player card, hint text,
+  and filter chips all at once on the right edge, and made everything look
+  frozen since page-level horizontal scroll was intentionally disabled
+- Root cause: a CSS grid item defaults to `min-width: auto`, so wide content
+  inside it (the chip rows) can stretch the whole grid track instead of
+  being contained — fixed by constraining the grid items properly
+
+## v2.6.1
+- Fixed the genre/spotlight filter chip rows appearing frozen on desktop —
+  they were technically scrollable (`overflow-x:auto`) but had no visible
+  scrollbar and no way to trigger it with a plain mouse, since macOS/Windows
+  hide scrollbars by default outside of touch/trackpad gestures
+- Added a visible thin scrollbar, mouse-wheel-to-horizontal-scroll, and
+  click-and-drag scrolling so the rows are usable with any input method
+
+## v2.6.0
 - Added a "Singer spotlights" row: filter chips for Kishore Kumar, Lata
   Mangeshkar, Mohammed Rafi, Asha Bhosle, and a combined "90s Playback
   Legends" chip (Kumar Sanu, Udit Narayan, Alka Yagnik, Anuradha Paudwal)

@@ -472,7 +472,7 @@
 
 </div>
 
-<footer>Station list from the community-run <a href="https://www.radio-browser.info" target="_blank" rel="noopener">Radio Browser</a> directory. Playback quality and availability depend on each broadcaster's own servers.<br><span style="opacity:.6;">The Dial — India · v2.6.2</span></footer>
+<footer>Station list from the community-run <a href="https://www.radio-browser.info" target="_blank" rel="noopener">Radio Browser</a> directory. Playback quality and availability depend on each broadcaster's own servers.<br><span style="opacity:.6;">The Dial — India · v2.7.0</span></footer>
 
 <audio id="player" preload="none"></audio>
 
@@ -593,6 +593,20 @@
     if(hlsInstance){ hlsInstance.destroy(); hlsInstance = null; }
   }
 
+  function updateMediaSession(s){
+    if(!('mediaSession' in navigator)) return;
+    navigator.mediaSession.metadata = new MediaMetadata({
+      title: s.name,
+      artist: s.state ? `The Dial — ${s.state}` : 'The Dial — India',
+      album: (s.tagList && s.tagList[0]) ? s.tagList[0] : 'Live radio',
+      artwork: [
+        { src: 'data:image/svg+xml,' + encodeURIComponent(
+            `<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512"><rect width="512" height="512" fill="#1c1510"/><text x="50%" y="55%" font-size="220" text-anchor="middle" fill="#cf9d43" font-family="sans-serif">📻</text></svg>`
+          ), sizes: '512x512', type: 'image/svg+xml' }
+      ]
+    });
+  }
+
   function selectStation(s, rowEl){
     current = s;
     document.querySelectorAll('.row').forEach(r=>r.classList.remove('selected'));
@@ -602,6 +616,7 @@
     setNeedle(parseFloat(s.freq));
     setStatus('', 'Connecting…');
     playBtn.textContent = '▶';
+    updateMediaSession(s);
 
     stopHls();
     const isHls = /\.m3u8($|\?)/i.test(s.url);
@@ -645,6 +660,10 @@
   });
   audio.addEventListener('playing', ()=>{
     if(current) setStatus('live','Live');
+    if('mediaSession' in navigator) navigator.mediaSession.playbackState = 'playing';
+  });
+  audio.addEventListener('pause', ()=>{
+    if('mediaSession' in navigator) navigator.mediaSession.playbackState = 'paused';
   });
 
   playBtn.addEventListener('click', ()=>{
@@ -657,6 +676,25 @@
       setStatus('', 'Paused');
     }
   });
+
+  // Lets the lock screen / control center play-pause buttons actually work,
+  // instead of only the in-page button.
+  if('mediaSession' in navigator){
+    navigator.mediaSession.setActionHandler('play', ()=>{
+      if(!current) return;
+      audio.play().then(()=>{ playBtn.textContent='⏸'; setStatus('live','Live'); });
+    });
+    navigator.mediaSession.setActionHandler('pause', ()=>{
+      audio.pause();
+      playBtn.textContent = '▶';
+      setStatus('', 'Paused');
+    });
+    navigator.mediaSession.setActionHandler('stop', ()=>{
+      audio.pause();
+      playBtn.textContent = '▶';
+      setStatus('', 'Paused');
+    });
+  }
 
   volume.addEventListener('input', ()=>{
     audio.volume = parseFloat(volume.value);
