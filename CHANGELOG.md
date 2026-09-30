@@ -1,6 +1,20 @@
 # Changelog
 
-## v3.1.0 — current
+## v3.1.1 — current
+- Fixed the "trending podcasts" list not loading — it depended on Apple's
+  Top Charts feed (rss.marketingtools.apple.com), whose browser CORS support
+  couldn't be confirmed and failed in practice
+- Replaced with a "Popular podcasts in India" list built from several broad
+  searches (india, hindi, bollywood, cricket, comedy, business news) against
+  the same iTunes Search API that already powers regular search, merged and
+  de-duplicated — same proven, working data source throughout
+- Relabelled accordingly: "Popular podcasts in India," not "Trending," since
+  it's assembled from search relevance rather than an official chart
+- Removed the extra per-show lookup call on open — search results already
+  include everything needed (feed URL, artwork, etc.), so opening a popular
+  show is now one less network round-trip
+
+## v3.1.0
 - The Podcasts tab now opens showing a live "Trending on Apple Podcasts —
   India" chart by default, instead of an empty search box
 - Uses Apple's free public Top Charts feed (marketingtools.apple.com) — no

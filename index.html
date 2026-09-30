@@ -568,7 +568,7 @@
 
 </div>
 
-<footer>Station list from the community-run <a href="https://www.radio-browser.info" target="_blank" rel="noopener">Radio Browser</a> directory. Playback quality and availability depend on each broadcaster's own servers.<br><span style="opacity:.6;">The Dial — India · v3.1.0</span></footer>
+<footer>Station list from the community-run <a href="https://www.radio-browser.info" target="_blank" rel="noopener">Radio Browser</a> directory. Playback quality and availability depend on each broadcaster's own servers.<br><span style="opacity:.6;">The Dial — India · v3.1.1</span></footer>
 
 <audio id="player" preload="none"></audio>
 
@@ -1106,16 +1106,36 @@
   });
 
   // "Currently listened" isn't public data anywhere for free — no service
-  // exposes real listen counts without a paid/login-gated API. The closest
-  // honest equivalent is Apple's own Top Charts for India, which is what
-  // this pulls; it's labelled as trending/chart-based, not raw listens.
+  // exposes real listen counts without a paid/login-gated API, and Apple's
+  // own Top Charts feed (rss.marketingtools.apple.com) turned out not to be
+  // reliably fetchable from a browser (its CORS support couldn't be
+  // confirmed, and it failed in practice). So this builds a "Popular in
+  // India" list from several broad searches on the same iTunes Search API
+  // that already works for regular search, merged and de-duplicated —
+  // genuinely popular shows, just assembled rather than an official chart.
+  const POPULAR_SEED_TERMS = ['india', 'hindi', 'bollywood', 'cricket', 'comedy', 'business news'];
+
   async function fetchTrending(){
     if(trendingCache) return trendingCache;
     try{
-      const res = await fetch('https://rss.marketingtools.apple.com/api/v2/in/podcasts/top/25/podcasts.json');
-      if(!res.ok) throw new Error('bad response');
-      const data = await res.json();
-      trendingCache = (data.feed && data.feed.results) ? data.feed.results : [];
+      const responses = await Promise.allSettled(
+        POPULAR_SEED_TERMS.map(term =>
+          fetch(`https://itunes.apple.com/search?media=podcast&term=${encodeURIComponent(term)}&country=IN&limit=8`)
+            .then(r => r.ok ? r.json() : { results: [] })
+        )
+      );
+      const seen = new Set();
+      const merged = [];
+      responses.forEach(r=>{
+        if(r.status !== 'fulfilled') return;
+        (r.value.results || []).forEach(p=>{
+          if(!p.collectionId || seen.has(p.collectionId)) return;
+          seen.add(p.collectionId);
+          merged.push(p);
+        });
+      });
+      if(!merged.length) return null;
+      trendingCache = merged.slice(0, 24);
       return trendingCache;
     }catch(e){
       return null;
@@ -1128,7 +1148,7 @@
       renderTrending(trendingCache);
       return;
     }
-    podcastResultsEl.innerHTML = '<div class="msg">Loading trending podcasts…</div>';
+    podcastResultsEl.innerHTML = '<div class="msg">Loading popular podcasts…</div>';
     const results = await fetchTrending();
     trendingLoaded = true;
     if(!results){
@@ -1143,41 +1163,22 @@
       podcastResultsEl.innerHTML = '<div class="msg">Search above to find podcasts — powered by Apple\u2019s free podcast directory.</div>';
       return;
     }
-    podcastCountLine.textContent = 'Trending on Apple Podcasts — India';
+    podcastCountLine.textContent = 'Popular podcasts in India';
     podcastResultsEl.innerHTML = '';
-    results.forEach((p, i)=>{
+    results.forEach(p=>{
       const row = document.createElement('div');
-      row.className = 'row trending-row';
+      row.className = 'row podcast-row';
       row.innerHTML = `
-        <div class="num">#${i+1}</div>
         <img class="art" src="${p.artworkUrl100 || ''}" alt="" loading="lazy">
         <div>
-          <div class="name">${p.name || 'Untitled'}</div>
+          <div class="name">${p.collectionName || p.trackName || 'Untitled'}</div>
           <div class="tags">${p.artistName || ''}</div>
         </div>
         <div class="go">›</div>
       `;
-      row.addEventListener('click', ()=> openTrendingPodcast(p));
+      row.addEventListener('click', ()=> openPodcast(p));
       podcastResultsEl.appendChild(row);
     });
-  }
-
-  // The charts feed gives id/name/artwork but not the RSS feed URL itself —
-  // one lookup call gets the same full shape the search results use, so it
-  // can reuse openPodcast() unchanged.
-  async function openTrendingPodcast(entry){
-    podcastResultsEl.innerHTML = '<div class="msg">Loading…</div>';
-    try{
-      const res = await fetch(`https://itunes.apple.com/lookup?id=${entry.id}&country=IN`);
-      const data = await res.json();
-      const full = (data.results && data.results[0]) ? data.results[0] : null;
-      if(!full) throw new Error('not found');
-      renderTrending(trendingCache); // restore the list behind the episode view
-      openPodcast(full);
-    }catch(e){
-      renderTrending(trendingCache);
-      podcastResultsEl.insertAdjacentHTML('afterbegin', '<div class="msg">Couldn\u2019t load that show right now. Try again.</div>');
-    }
   }
 
   async function searchPodcasts(query){
