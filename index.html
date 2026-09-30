@@ -404,6 +404,78 @@
     cursor:pointer;
     font-size:.82rem;
   }
+  .msg a{ color:var(--brass-bright); }
+
+  .mode-tabs{
+    display:flex;
+    gap:.5rem;
+    margin-bottom:1rem;
+  }
+  .mode-tab{
+    flex:1;
+    background:var(--panel);
+    border:1px solid var(--line);
+    color:var(--cream-dim);
+    border-radius:10px;
+    padding:.7rem 1rem;
+    font-size:.9rem;
+    font-family:'Inter',sans-serif;
+    font-weight:600;
+    cursor:pointer;
+  }
+  .mode-tab.active{
+    background:var(--saffron);
+    border-color:var(--saffron);
+    color:#1c1510;
+  }
+
+  .row.podcast-row{
+    grid-template-columns:48px 1fr auto;
+  }
+  .row.trending-row{
+    grid-template-columns:32px 48px 1fr auto;
+  }
+  .row .art{
+    width:48px; height:48px;
+    border-radius:8px;
+    object-fit:cover;
+    background:var(--line);
+  }
+  .back-btn{
+    background:none;
+    border:none;
+    color:var(--brass-bright);
+    font-size:.85rem;
+    cursor:pointer;
+    padding:.4rem 0 .8rem;
+    font-family:'Inter',sans-serif;
+  }
+  .episode-header{
+    display:flex;
+    gap:.9rem;
+    align-items:center;
+    margin-bottom:1rem;
+    padding-bottom:1rem;
+    border-bottom:1px solid var(--line);
+  }
+  .episode-header img{
+    width:64px;height:64px;border-radius:10px;object-fit:cover;
+  }
+  .episode-header h3{
+    font-family:'Fraunces',serif;
+    margin:0 0 .2rem;
+    font-size:1.1rem;
+  }
+  .episode-header p{
+    margin:0;
+    color:var(--cream-dim);
+    font-size:.8rem;
+  }
+  .row .ep-meta{
+    font-size:.75rem;
+    color:var(--cream-dim);
+    margin-top:.15rem;
+  }
 
   footer{
     text-align:center;
@@ -454,25 +526,49 @@
 
   <!-- Station list -->
   <div class="stations">
-    <div class="toolbar">
-      <input class="search" id="search" type="text" placeholder="Search by name, language, city…">
-      <select class="search" id="stateFilter">
-        <option value="">All states / cities</option>
-      </select>
+    <div class="mode-tabs">
+      <button class="mode-tab active" id="tabRadio" type="button">📻 Live Radio</button>
+      <button class="mode-tab" id="tabPodcasts" type="button">🎙️ Podcasts</button>
     </div>
-    <div class="toolbar" id="chips"></div>
-    <div class="spotlight-label" id="spotlightLabel" style="display:none;">Singer spotlights</div>
-    <div class="toolbar" id="spotlightChips"></div>
-    <div class="count-line" id="countLine"></div>
 
-    <div class="station-list" id="stationList">
-      <div class="msg">Tuning into the airwaves…</div>
+    <div id="radioSection">
+      <div class="toolbar">
+        <input class="search" id="search" type="text" placeholder="Search by name, language, city…">
+        <select class="search" id="stateFilter">
+          <option value="">All states / cities</option>
+        </select>
+      </div>
+      <div class="toolbar" id="chips"></div>
+      <div class="spotlight-label" id="spotlightLabel" style="display:none;">Singer spotlights</div>
+      <div class="toolbar" id="spotlightChips"></div>
+      <div class="count-line" id="countLine"></div>
+
+      <div class="station-list" id="stationList">
+        <div class="msg">Tuning into the airwaves…</div>
+      </div>
+    </div>
+
+    <div id="podcastSection" style="display:none;">
+      <div class="toolbar">
+        <input class="search" id="podcastSearch" type="text" placeholder="Search podcasts — try a topic or show name…">
+      </div>
+      <div class="count-line" id="podcastCountLine"></div>
+
+      <div id="podcastResults" class="station-list">
+        <div class="msg">Loading trending podcasts…</div>
+      </div>
+
+      <div id="episodeView" style="display:none;">
+        <button class="back-btn" id="backToPodcasts" type="button">← Back to search results</button>
+        <div id="episodeHeader"></div>
+        <div id="episodeList" class="station-list"></div>
+      </div>
     </div>
   </div>
 
 </div>
 
-<footer>Station list from the community-run <a href="https://www.radio-browser.info" target="_blank" rel="noopener">Radio Browser</a> directory. Playback quality and availability depend on each broadcaster's own servers.<br><span style="opacity:.6;">The Dial — India · v2.7.0</span></footer>
+<footer>Station list from the community-run <a href="https://www.radio-browser.info" target="_blank" rel="noopener">Radio Browser</a> directory. Playback quality and availability depend on each broadcaster's own servers.<br><span style="opacity:.6;">The Dial — India · v3.1.0</span></footer>
 
 <audio id="player" preload="none"></audio>
 
@@ -951,6 +1047,271 @@
   }
 
   loadStations();
+
+  // --- Podcasts -------------------------------------------------------
+  // Search uses Apple's free, CORS-friendly iTunes Search API — always works.
+  // Episode lists require fetching each show's own RSS feed directly in the
+  // browser, and many podcast hosts don't enable CORS on those feeds (RSS
+  // was built for apps/servers, not browser fetches). When that happens we
+  // fall back to a link to open the show in Apple Podcasts instead of
+  // pretending it works.
+
+  const tabRadio = document.getElementById('tabRadio');
+  const tabPodcasts = document.getElementById('tabPodcasts');
+  const radioSection = document.getElementById('radioSection');
+  const podcastSection = document.getElementById('podcastSection');
+  const podcastSearchEl = document.getElementById('podcastSearch');
+  const podcastResultsEl = document.getElementById('podcastResults');
+  const podcastCountLine = document.getElementById('podcastCountLine');
+  const episodeView = document.getElementById('episodeView');
+
+  tabRadio.addEventListener('click', ()=>{
+    tabRadio.classList.add('active');
+    tabPodcasts.classList.remove('active');
+    radioSection.style.display = '';
+    podcastSection.style.display = 'none';
+  });
+  tabPodcasts.addEventListener('click', ()=>{
+    tabPodcasts.classList.add('active');
+    tabRadio.classList.remove('active');
+    podcastSection.style.display = '';
+    radioSection.style.display = 'none';
+    if(!trendingLoaded && !podcastSearchEl.value.trim()) showTrending();
+  });
+
+  document.getElementById('backToPodcasts').addEventListener('click', ()=>{
+    episodeView.style.display = 'none';
+    podcastResultsEl.style.display = '';
+  });
+
+  function formatPubDate(str){
+    if(!str) return '';
+    const d = new Date(str);
+    if(isNaN(d.getTime())) return '';
+    return d.toLocaleDateString(undefined, { year:'numeric', month:'short', day:'numeric' });
+  }
+
+  let podcastSearchTimer = null;
+  let trendingCache = null;   // cached so clearing the search box doesn't re-fetch every time
+  let trendingLoaded = false;
+
+  podcastSearchEl.addEventListener('input', ()=>{
+    clearTimeout(podcastSearchTimer);
+    const q = podcastSearchEl.value.trim();
+    if(q.length < 2){
+      showTrending();
+      return;
+    }
+    podcastSearchTimer = setTimeout(()=> searchPodcasts(q), 500);
+  });
+
+  // "Currently listened" isn't public data anywhere for free — no service
+  // exposes real listen counts without a paid/login-gated API. The closest
+  // honest equivalent is Apple's own Top Charts for India, which is what
+  // this pulls; it's labelled as trending/chart-based, not raw listens.
+  async function fetchTrending(){
+    if(trendingCache) return trendingCache;
+    try{
+      const res = await fetch('https://rss.marketingtools.apple.com/api/v2/in/podcasts/top/25/podcasts.json');
+      if(!res.ok) throw new Error('bad response');
+      const data = await res.json();
+      trendingCache = (data.feed && data.feed.results) ? data.feed.results : [];
+      return trendingCache;
+    }catch(e){
+      return null;
+    }
+  }
+
+  async function showTrending(){
+    podcastCountLine.textContent = '';
+    if(trendingLoaded && trendingCache){
+      renderTrending(trendingCache);
+      return;
+    }
+    podcastResultsEl.innerHTML = '<div class="msg">Loading trending podcasts…</div>';
+    const results = await fetchTrending();
+    trendingLoaded = true;
+    if(!results){
+      podcastResultsEl.innerHTML = '<div class="msg">Search above to find podcasts — powered by Apple\u2019s free podcast directory.</div>';
+      return;
+    }
+    renderTrending(results);
+  }
+
+  function renderTrending(results){
+    if(!results.length){
+      podcastResultsEl.innerHTML = '<div class="msg">Search above to find podcasts — powered by Apple\u2019s free podcast directory.</div>';
+      return;
+    }
+    podcastCountLine.textContent = 'Trending on Apple Podcasts — India';
+    podcastResultsEl.innerHTML = '';
+    results.forEach((p, i)=>{
+      const row = document.createElement('div');
+      row.className = 'row trending-row';
+      row.innerHTML = `
+        <div class="num">#${i+1}</div>
+        <img class="art" src="${p.artworkUrl100 || ''}" alt="" loading="lazy">
+        <div>
+          <div class="name">${p.name || 'Untitled'}</div>
+          <div class="tags">${p.artistName || ''}</div>
+        </div>
+        <div class="go">›</div>
+      `;
+      row.addEventListener('click', ()=> openTrendingPodcast(p));
+      podcastResultsEl.appendChild(row);
+    });
+  }
+
+  // The charts feed gives id/name/artwork but not the RSS feed URL itself —
+  // one lookup call gets the same full shape the search results use, so it
+  // can reuse openPodcast() unchanged.
+  async function openTrendingPodcast(entry){
+    podcastResultsEl.innerHTML = '<div class="msg">Loading…</div>';
+    try{
+      const res = await fetch(`https://itunes.apple.com/lookup?id=${entry.id}&country=IN`);
+      const data = await res.json();
+      const full = (data.results && data.results[0]) ? data.results[0] : null;
+      if(!full) throw new Error('not found');
+      renderTrending(trendingCache); // restore the list behind the episode view
+      openPodcast(full);
+    }catch(e){
+      renderTrending(trendingCache);
+      podcastResultsEl.insertAdjacentHTML('afterbegin', '<div class="msg">Couldn\u2019t load that show right now. Try again.</div>');
+    }
+  }
+
+  async function searchPodcasts(query){
+    podcastResultsEl.innerHTML = '<div class="msg">Searching…</div>';
+    try{
+      const res = await fetch(`https://itunes.apple.com/search?media=podcast&term=${encodeURIComponent(query)}&country=IN&limit=25`);
+      if(!res.ok) throw new Error('bad response');
+      const data = await res.json();
+      renderPodcastResults(data.results || []);
+    }catch(e){
+      podcastResultsEl.innerHTML = '<div class="msg">Couldn\u2019t reach the podcast directory. Check your connection and try again.</div>';
+      podcastCountLine.textContent = '';
+    }
+  }
+
+  function renderPodcastResults(results){
+    podcastCountLine.textContent = results.length + (results.length === 1 ? ' podcast' : ' podcasts');
+    if(!results.length){
+      podcastResultsEl.innerHTML = '<div class="msg">No podcasts found for that search.</div>';
+      return;
+    }
+    podcastResultsEl.innerHTML = '';
+    results.forEach(p=>{
+      const row = document.createElement('div');
+      row.className = 'row podcast-row';
+      row.innerHTML = `
+        <img class="art" src="${p.artworkUrl100 || ''}" alt="" loading="lazy">
+        <div>
+          <div class="name">${p.collectionName || p.trackName || 'Untitled'}</div>
+          <div class="tags">${p.artistName || ''}${p.trackCount ? ' · '+p.trackCount+' episodes' : ''}</div>
+        </div>
+        <div class="go">›</div>
+      `;
+      row.addEventListener('click', ()=> openPodcast(p));
+      podcastResultsEl.appendChild(row);
+    });
+  }
+
+  async function openPodcast(podcast){
+    podcastResultsEl.style.display = 'none';
+    episodeView.style.display = '';
+
+    document.getElementById('episodeHeader').innerHTML = `
+      <div class="episode-header">
+        <img src="${podcast.artworkUrl100 || ''}" alt="">
+        <div>
+          <h3>${podcast.collectionName || podcast.trackName || 'Untitled'}</h3>
+          <p>${podcast.artistName || ''}</p>
+        </div>
+      </div>
+    `;
+
+    const listEl = document.getElementById('episodeList');
+    listEl.innerHTML = '<div class="msg">Loading episodes…</div>';
+
+    if(!podcast.feedUrl){
+      listEl.innerHTML = `<div class="msg">No episode feed available for this show. <a href="${podcast.collectionViewUrl}" target="_blank" rel="noopener">Open in Apple Podcasts</a> instead.</div>`;
+      return;
+    }
+
+    try{
+      const res = await fetch(podcast.feedUrl);
+      if(!res.ok) throw new Error('feed unreachable');
+      const text = await res.text();
+      const xml = new DOMParser().parseFromString(text, 'text/xml');
+      if(xml.querySelector('parsererror')) throw new Error('feed did not parse as XML');
+
+      const items = Array.from(xml.querySelectorAll('item')).slice(0, 30);
+      listEl.innerHTML = '';
+
+      items.forEach(item=>{
+        const title = item.querySelector('title')?.textContent || 'Untitled episode';
+        const enclosure = item.querySelector('enclosure');
+        const audioUrl = enclosure ? enclosure.getAttribute('url') : null;
+        if(!audioUrl) return; // skip episodes with no playable file
+
+        const pubDate = item.querySelector('pubDate')?.textContent || '';
+        const durationNodes = item.getElementsByTagNameNS('*','duration');
+        const duration = durationNodes.length ? durationNodes[0].textContent : '';
+
+        const row = document.createElement('div');
+        row.className = 'row podcast-row';
+        row.innerHTML = `
+          <div class="num">▶</div>
+          <div>
+            <div class="name">${title}</div>
+            <div class="ep-meta">${formatPubDate(pubDate)}${duration ? ' · '+duration : ''}</div>
+          </div>
+          <div class="go">▶</div>
+        `;
+        row.addEventListener('click', ()=> playEpisode(
+          { title, audioUrl },
+          { name: podcast.collectionName || podcast.trackName || '', artwork: podcast.artworkUrl100 },
+          row
+        ));
+        listEl.appendChild(row);
+      });
+
+      if(!listEl.children.length){
+        listEl.innerHTML = `<div class="msg">Couldn\u2019t find playable episodes in this feed. <a href="${podcast.collectionViewUrl}" target="_blank" rel="noopener">Open in Apple Podcasts</a> instead.</div>`;
+      }
+    }catch(e){
+      listEl.innerHTML = `<div class="msg">This show\u2019s episode feed couldn\u2019t be loaded directly here — some podcast hosts block that. <a href="${podcast.collectionViewUrl}" target="_blank" rel="noopener">Open it in Apple Podcasts</a> instead.</div>`;
+    }
+  }
+
+  function playEpisode(ep, podcast, rowEl){
+    current = { name: ep.title, isPodcast: true };
+    document.querySelectorAll('#episodeList .row').forEach(r=>r.classList.remove('selected'));
+    if(rowEl) rowEl.classList.add('selected');
+
+    freqNum.textContent = '🎙️';
+    stationName.textContent = `${ep.title} — ${podcast.name}`;
+    setStatus('', 'Connecting…');
+    playBtn.textContent = '▶';
+
+    if('mediaSession' in navigator){
+      navigator.mediaSession.metadata = new MediaMetadata({
+        title: ep.title,
+        artist: podcast.name,
+        album: 'Podcast',
+        artwork: podcast.artwork ? [{ src: podcast.artwork, sizes: '600x600', type: 'image/jpeg' }] : []
+      });
+    }
+
+    audio.src = ep.audioUrl;
+    audio.play().then(()=>{
+      setStatus('live','Playing');
+      playBtn.textContent = '⏸';
+    }).catch(()=>{
+      setStatus('error','Couldn\u2019t play this episode');
+      playBtn.textContent = '▶';
+    });
+  }
 </script>
 
 </body>

@@ -1,6 +1,31 @@
 # Changelog
 
-## v2.7.0 — current
+## v3.1.0 — current
+- The Podcasts tab now opens showing a live "Trending on Apple Podcasts —
+  India" chart by default, instead of an empty search box
+- Uses Apple's free public Top Charts feed (marketingtools.apple.com) — no
+  key required
+- Note on honesty: there's no free public source for actual listen counts
+  anywhere (Spotify/Apple don't expose real numbers without a paid,
+  login-gated API), so this is genuinely "currently trending on Apple's own
+  chart," not literal live listener counts — labelled as such in the UI
+- Selecting a trending show does one extra lookup call to get its RSS feed
+  URL, then reuses the same episode-loading logic as search results
+
+## v3.0.0
+- Added a Podcasts tab alongside Live Radio, sharing the same player and
+  design
+- Podcast search uses Apple's free iTunes Search API (no key required,
+  fully CORS-friendly)
+- Episode lists are fetched directly from each show's own RSS feed and
+  parsed in the browser — since many podcast hosts don't enable CORS on
+  their feeds (RSS wasn't built for browser fetches), a show that can't be
+  read this way falls back to a link to open it in Apple Podcasts instead
+  of silently failing
+- Selecting an episode reuses the same audio player, lock-screen Media
+  Session integration, and play/pause controls as live radio
+
+## v2.7.0
 - Fixed the lock screen / Control Center player showing a blank station name
   — it was only ever displaying the page title ("The Dial — India") because
   the app never told iOS/Android what was actually playing
